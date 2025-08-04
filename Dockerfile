@@ -1,20 +1,15 @@
-# Support setting various labels on the final image
-ARG COMMIT=""
-ARG VERSION=""
-ARG BUILDNUM=""
-
-# Build Geth in a stock Go builder container
+# Build Go compiler container
 FROM golang:1.24-alpine AS builder
+RUN apk add --no-cache gcc musl-dev linux-headers git bash
 
-RUN apk add --no-cache gcc musl-dev linux-headers git
+# Get Go fork and build it.
+RUN git clone --branch modexpfix https://github.com/GottfriedHerold/go-modexp /go-modexp
+WORKDIR /go-modexp/src
+RUN ./make.bash
 
-# Get dependencies - will also be cached if we won't change go.mod/go.sum
-COPY go.mod /go-ethereum/
-COPY go.sum /go-ethereum/
-RUN cd /go-ethereum && go mod download
-
+# Build Geth.
 ADD . /go-ethereum
-RUN cd /go-ethereum && go run build/ci.go install -static ./cmd/geth
+RUN cd /go-ethereum && /go-modexp/bin/go run build/ci.go install -static ./cmd/geth
 
 # Pull Geth into a second stage deploy alpine container
 FROM alpine:latest
