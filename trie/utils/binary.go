@@ -21,22 +21,10 @@ import (
 	"crypto/sha256"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-verkle"
 	"github.com/holiman/uint256"
 )
 
-const maxPointCacheByteSize = 100 << 20
-
-var (
-	zeroHash            = common.Hash{}
-	VerkleNodeWidthLog2 = 8
-	HeaderStorageOffset = uint256.NewInt(64)
-	CodeOffset          = uint256.NewInt(128)
-	MainStorageOffset   = new(uint256.Int).Lsh(uint256.NewInt(1), 248 /* 8 * 31*/)
-	VerkleNodeWidth     = uint256.NewInt(256)
-
-	getTreePolyIndex0Point *verkle.Point
-)
+var zeroHash = common.Hash{}
 
 func GetBinaryTreeKey(addr common.Address, key []byte) []byte {
 	hasher := sha256.New()
@@ -75,6 +63,6 @@ func GetBinaryTreeKeyStorageSlot(address common.Address, key []byte) []byte {
 }
 
 func GetBinaryTreeKeyCodeChunk(address common.Address, chunknr *uint256.Int) []byte {
-	chunkOffset := new(uint256.Int).Add(CodeOffset, chunknr).Bytes()
+	chunkOffset := new(uint256.Int).Add(codeOffset, chunknr).Bytes()
 	return GetBinaryTreeKey(address, chunkOffset)
 }
