@@ -20,38 +20,38 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-type verkleNodeIteratorState struct {
+type binaryNodeIteratorState struct {
 	Node  BinaryNode
 	Index int
 }
 
-type verkleNodeIterator struct {
+type binaryNodeIterator struct {
 	trie    *BinaryTrie
 	current BinaryNode
 	lastErr error
 
-	stack []verkleNodeIteratorState
+	stack []binaryNodeIteratorState
 }
 
-func newVerkleNodeIterator(trie *BinaryTrie, _ []byte) (NodeIterator, error) {
+func newBinaryNodeIterator(trie *BinaryTrie, _ []byte) (NodeIterator, error) {
 	if trie.Hash() == zero {
 		return new(nodeIterator), nil
 	}
-	it := &verkleNodeIterator{trie: trie, current: trie.root}
+	it := &binaryNodeIterator{trie: trie, current: trie.root}
 	// it.err = it.seek(start)
 	return it, nil
 }
 
 // Next moves the iterator to the next node. If the parameter is false, any child
 // nodes will be skipped.
-func (it *verkleNodeIterator) Next(descend bool) bool {
+func (it *binaryNodeIterator) Next(descend bool) bool {
 	if it.lastErr == errIteratorEnd {
 		it.lastErr = errIteratorEnd
 		return false
 	}
 
 	if len(it.stack) == 0 {
-		it.stack = append(it.stack, verkleNodeIteratorState{Node: it.trie.root})
+		it.stack = append(it.stack, binaryNodeIteratorState{Node: it.trie.root})
 		it.current = it.trie.root
 
 		return true
@@ -65,7 +65,7 @@ func (it *verkleNodeIterator) Next(descend bool) bool {
 		// recurse into both children
 		if context.Index == 0 {
 			if node.left != nil {
-				it.stack = append(it.stack, verkleNodeIteratorState{Node: node.left})
+				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.left})
 				it.current = node.left
 				return it.Next(descend)
 
@@ -76,7 +76,7 @@ func (it *verkleNodeIterator) Next(descend bool) bool {
 
 		if context.Index == 1 {
 			if node.right != nil {
-				it.stack = append(it.stack, verkleNodeIteratorState{Node: node.right})
+				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.right})
 				it.current = node.right
 				return it.Next(descend)
 			}
@@ -137,7 +137,7 @@ func (it *verkleNodeIterator) Next(descend bool) bool {
 }
 
 // Error returns the error status of the iterator.
-func (it *verkleNodeIterator) Error() error {
+func (it *binaryNodeIterator) Error() error {
 	if it.lastErr == errIteratorEnd {
 		return nil
 	}
@@ -145,20 +145,20 @@ func (it *verkleNodeIterator) Error() error {
 }
 
 // Hash returns the hash of the current node.
-func (it *verkleNodeIterator) Hash() common.Hash {
+func (it *binaryNodeIterator) Hash() common.Hash {
 	return it.current.Commit()
 }
 
 // Parent returns the hash of the parent of the current node. The hash may be the one
 // grandparent if the immediate parent is an internal node with no hash.
-func (it *verkleNodeIterator) Parent() common.Hash {
+func (it *binaryNodeIterator) Parent() common.Hash {
 	return it.stack[len(it.stack)-1].Node.Commit()
 }
 
 // Path returns the hex-encoded path to the current node.
 // Callers must not retain references to the return value after calling Next.
 // For leaf nodes, the last element of the path is the 'terminator symbol' 0x10.
-func (it *verkleNodeIterator) Path() []byte {
+func (it *binaryNodeIterator) Path() []byte {
 	if it.Leaf() {
 		return it.LeafKey()
 	}
@@ -173,12 +173,12 @@ func (it *verkleNodeIterator) Path() []byte {
 	return path
 }
 
-func (it *verkleNodeIterator) NodeBlob() []byte {
+func (it *binaryNodeIterator) NodeBlob() []byte {
 	panic("not completely implemented")
 }
 
 // Leaf returns true iff the current node is a leaf node.
-func (it *verkleNodeIterator) Leaf() bool {
+func (it *binaryNodeIterator) Leaf() bool {
 	_, ok := it.current.(*StemNode)
 	return ok
 }
@@ -186,10 +186,10 @@ func (it *verkleNodeIterator) Leaf() bool {
 // LeafKey returns the key of the leaf. The method panics if the iterator is not
 // positioned at a leaf. Callers must not retain references to the value after
 // calling Next.
-func (it *verkleNodeIterator) LeafKey() []byte {
+func (it *binaryNodeIterator) LeafKey() []byte {
 	leaf, ok := it.current.(*StemNode)
 	if !ok {
-		panic("Leaf() called on an verkle node iterator not at a leaf location")
+		panic("Leaf() called on an binary node iterator not at a leaf location")
 	}
 
 	return leaf.Key(it.stack[len(it.stack)-1].Index - 1)
@@ -198,10 +198,10 @@ func (it *verkleNodeIterator) LeafKey() []byte {
 // LeafBlob returns the content of the leaf. The method panics if the iterator
 // is not positioned at a leaf. Callers must not retain references to the value
 // after calling Next.
-func (it *verkleNodeIterator) LeafBlob() []byte {
+func (it *binaryNodeIterator) LeafBlob() []byte {
 	leaf, ok := it.current.(*StemNode)
 	if !ok {
-		panic("LeafBlob() called on an verkle node iterator not at a leaf location")
+		panic("LeafBlob() called on an binary node iterator not at a leaf location")
 	}
 
 	return leaf.Values[it.stack[len(it.stack)-1].Index-1]
@@ -210,10 +210,10 @@ func (it *verkleNodeIterator) LeafBlob() []byte {
 // LeafProof returns the Merkle proof of the leaf. The method panics if the
 // iterator is not positioned at a leaf. Callers must not retain references
 // to the value after calling Next.
-func (it *verkleNodeIterator) LeafProof() [][]byte {
+func (it *binaryNodeIterator) LeafProof() [][]byte {
 	_, ok := it.current.(*StemNode)
 	if !ok {
-		panic("LeafProof() called on an verkle node iterator not at a leaf location")
+		panic("LeafProof() called on an binary node iterator not at a leaf location")
 	}
 
 	// return it.trie.Prove(leaf.Key())
@@ -231,6 +231,6 @@ func (it *verkleNodeIterator) LeafProof() [][]byte {
 // Before adding a similar mechanism to any other place in Geth, consider
 // making trie.Database an interface and wrapping at that level. It's a huge
 // refactor, but it could be worth it if another occurrence arises.
-func (it *verkleNodeIterator) AddResolver(NodeResolver) {
+func (it *binaryNodeIterator) AddResolver(NodeResolver) {
 	// Not implemented, but should not panic
 }
