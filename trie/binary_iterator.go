@@ -68,7 +68,6 @@ func (it *binaryNodeIterator) Next(descend bool) bool {
 				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.left})
 				it.current = node.left
 				return it.Next(descend)
-
 			}
 
 			context.Index++

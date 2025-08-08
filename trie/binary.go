@@ -325,9 +325,9 @@ func (bt *StemNode) toDot(parent, path string) string {
 	return ret
 }
 
-func (n *StemNode) Key(i int) []byte {
+func (bt *StemNode) Key(i int) []byte {
 	var ret [32]byte
-	copy(ret[:], n.Stem)
+	copy(ret[:], bt.Stem)
 	ret[verkle.StemSize] = byte(i)
 	return ret[:]
 }
@@ -487,6 +487,23 @@ func (bt *InternalNode) GetHeight() int {
 	return 1 + max(leftHeight, rightHeight)
 }
 
+func (bt *InternalNode) toDot(parent, path string) string {
+	me := fmt.Sprintf("internal%s", path)
+	ret := fmt.Sprintf("%s [label=\"I: %x\"]\n", me, bt.Hash())
+	if len(parent) > 0 {
+		ret = fmt.Sprintf("%s %s -> %s\n", ret, parent, me)
+	}
+
+	if bt.left != nil {
+		ret = fmt.Sprintf("%s%s", ret, bt.left.toDot(me, fmt.Sprintf("%s%02x", path, 0)))
+	}
+	if bt.right != nil {
+		ret = fmt.Sprintf("%s%s", ret, bt.right.toDot(me, fmt.Sprintf("%s%02x", path, 1)))
+	}
+
+	return ret
+}
+
 func SerializeNode(node BinaryNode) []byte {
 	switch n := (node).(type) {
 	case *InternalNode:
@@ -556,26 +573,9 @@ type BinaryTrie struct {
 	reader *trieReader
 }
 
-func (vt *BinaryTrie) ToDot() string {
-	vt.root.Commit()
-	return vt.root.toDot("", "")
-}
-
-func (n *InternalNode) toDot(parent, path string) string {
-	me := fmt.Sprintf("internal%s", path)
-	ret := fmt.Sprintf("%s [label=\"I: %x\"]\n", me, n.Hash())
-	if len(parent) > 0 {
-		ret = fmt.Sprintf("%s %s -> %s\n", ret, parent, me)
-	}
-
-	if n.left != nil {
-		ret = fmt.Sprintf("%s%s", ret, n.left.toDot(me, fmt.Sprintf("%s%02x", path, 0)))
-	}
-	if n.right != nil {
-		ret = fmt.Sprintf("%s%s", ret, n.right.toDot(me, fmt.Sprintf("%s%02x", path, 1)))
-	}
-
-	return ret
+func (trie *BinaryTrie) ToDot() string {
+	trie.root.Commit()
+	return trie.root.toDot("", "")
 }
 
 func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, error) {
@@ -629,16 +629,16 @@ func (trie *BinaryTrie) GetWithHashedKey(key []byte) ([]byte, error) {
 	return trie.root.Get(key, trie.FlatdbNodeResolver)
 }
 
-func (t *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, error) {
+func (trie *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, error) {
 	acc := &types.StateAccount{}
 	versionkey := utils.GetBinaryTreeKey(addr, zero[:])
 	var (
 		values [][]byte
 		err    error
 	)
-	switch r := t.root.(type) {
+	switch r := trie.root.(type) {
 	case *InternalNode:
-		values, err = r.GetValuesAtStem(versionkey[:31], t.FlatdbNodeResolver)
+		values, err = r.GetValuesAtStem(versionkey[:31], trie.FlatdbNodeResolver)
 	case *StemNode:
 		values = r.Values
 	case Empty:
@@ -683,7 +683,7 @@ func (t *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, error
 
 var zero [32]byte
 
-func (t *BinaryTrie) UpdateAccount(addr common.Address, acc *types.StateAccount, codeLen int) error {
+func (trie *BinaryTrie) UpdateAccount(addr common.Address, acc *types.StateAccount, codeLen int) error {
 	var (
 		err       error
 		basicData [32]byte
@@ -706,7 +706,7 @@ func (t *BinaryTrie) UpdateAccount(addr common.Address, acc *types.StateAccount,
 	values[utils.BasicDataLeafKey] = basicData[:]
 	values[utils.CodeHashLeafKey] = acc.CodeHash[:]
 
-	t.root, err = t.root.InsertValuesAtStem(stem, values, t.FlatdbNodeResolver, 0)
+	trie.root, err = trie.root.InsertValuesAtStem(stem, values, trie.FlatdbNodeResolver, 0)
 	return err
 }
 
@@ -736,7 +736,7 @@ func (trie *BinaryTrie) UpdateStorage(address common.Address, key, value []byte)
 	return nil
 }
 
-func (t *BinaryTrie) DeleteAccount(addr common.Address) error {
+func (trie *BinaryTrie) DeleteAccount(addr common.Address) error {
 	return nil
 }
 
@@ -832,7 +832,7 @@ func ProveAndSerialize(pretrie, posttrie *BinaryTrie, keys [][]byte, resolver No
 }
 
 // Note: the basic data leaf needs to have been previously created for this to work
-func (t *BinaryTrie) UpdateContractCode(addr common.Address, codeHash common.Hash, code []byte) error {
+func (trie *BinaryTrie) UpdateContractCode(addr common.Address, codeHash common.Hash, code []byte) error {
 	var (
 		chunks = ChunkifyCode(code)
 		values [][]byte
@@ -850,7 +850,7 @@ func (t *BinaryTrie) UpdateContractCode(addr common.Address, codeHash common.Has
 		values[groupOffset] = chunks[i : i+32]
 
 		if groupOffset == 255 || len(chunks)-i <= 32 {
-			err = t.UpdateStem(key[:31], values)
+			err = trie.UpdateStem(key[:31], values)
 
 			if err != nil {
 				return fmt.Errorf("UpdateContractCode (addr=%x) error: %w", addr[:], err)
