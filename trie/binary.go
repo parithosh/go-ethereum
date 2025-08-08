@@ -129,7 +129,7 @@ func (h HashedNode) Hash() common.Hash {
 }
 
 func (h HashedNode) GetValuesAtStem(_ []byte, _ NodeResolverFn) ([][]byte, error) {
-	panic("not implemented") // TODO: Implement
+	return nil, errors.New("attempted to get values from an unresolved node")
 }
 
 func (h HashedNode) InsertValuesAtStem(key []byte, values [][]byte, resolver NodeResolverFn, depth int) (BinaryNode, error) {
@@ -148,7 +148,7 @@ func (h HashedNode) CollectNodes([]byte, NodeFlushFn) error {
 }
 
 func (h HashedNode) GetHeight() int {
-	panic("should not get here, this is a bug") // TODO: Implement
+	panic("tried to get the height of a hashed node, this is a bug")
 }
 
 type StemNode struct {
