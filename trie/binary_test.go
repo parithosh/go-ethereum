@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/trie/bintree"
 )
 
 var (
@@ -151,7 +152,7 @@ func TestInsertDuplicateKey(t *testing.T) {
 		t.Fatal("invalid height")
 	}
 	// Verify that the value is updated
-	if !bytes.Equal(tree.(*StemNode).Values[1], twoKey[:]) {
+	if !bytes.Equal(tree.(*bintree.StemNode).Values[1], twoKey[:]) {
 		t.Fatal("invalid height")
 	}
 }

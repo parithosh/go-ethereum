@@ -18,16 +18,17 @@ package trie
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/trie/bintree"
 )
 
 type binaryNodeIteratorState struct {
-	Node  BinaryNode
+	Node  bintree.BinaryNode
 	Index int
 }
 
 type binaryNodeIterator struct {
 	trie    *BinaryTrie
-	current BinaryNode
+	current bintree.BinaryNode
 	lastErr error
 
 	stack []binaryNodeIteratorState
@@ -58,15 +59,15 @@ func (it *binaryNodeIterator) Next(descend bool) bool {
 	}
 
 	switch node := it.current.(type) {
-	case *InternalNode:
+	case *bintree.InternalNode:
 		// index: 0 = nothing visited, 1=left visited, 2=right visited
 		context := &it.stack[len(it.stack)-1]
 
 		// recurse into both children
 		if context.Index == 0 {
-			if node.left != nil {
-				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.left})
-				it.current = node.left
+			if _, isempty := node.Left.(bintree.Empty); node.Left != nil && !isempty {
+				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.Left})
+				it.current = node.Left
 				return it.Next(descend)
 			}
 
@@ -74,9 +75,9 @@ func (it *binaryNodeIterator) Next(descend bool) bool {
 		}
 
 		if context.Index == 1 {
-			if node.right != nil {
-				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.right})
-				it.current = node.right
+			if _, isempty := node.Right.(bintree.Empty); node.Right != nil && !isempty {
+				it.stack = append(it.stack, binaryNodeIteratorState{Node: node.Right})
+				it.current = node.Right
 				return it.Next(descend)
 			}
 
@@ -93,7 +94,7 @@ func (it *binaryNodeIterator) Next(descend bool) bool {
 		it.current = it.stack[len(it.stack)-1].Node
 		it.stack[len(it.stack)-1].Index++
 		return it.Next(descend)
-	case *StemNode:
+	case *bintree.StemNode:
 		// Look for the next non-empty value
 		for i := it.stack[len(it.stack)-1].Index; i < 256; i++ {
 			if node.Values[i] != nil {
@@ -107,13 +108,13 @@ func (it *binaryNodeIterator) Next(descend bool) bool {
 		it.current = it.stack[len(it.stack)-1].Node
 		it.stack[len(it.stack)-1].Index++
 		return it.Next(descend)
-	case HashedNode:
+	case bintree.HashedNode:
 		// resolve the node
 		data, err := it.trie.FlatdbNodeResolver(it.Path(), common.Hash(node))
 		if err != nil {
 			panic(err)
 		}
-		it.current, err = DeserializeNode(data, len(it.stack)-1)
+		it.current, err = bintree.DeserializeNode(data, len(it.stack)-1)
 		if err != nil {
 			panic(err)
 		}
@@ -122,12 +123,12 @@ func (it *binaryNodeIterator) Next(descend bool) bool {
 		it.stack[len(it.stack)-1].Node = it.current
 		parent := &it.stack[len(it.stack)-2]
 		if parent.Index == 0 {
-			parent.Node.(*InternalNode).left = it.current
+			parent.Node.(*bintree.InternalNode).Left = it.current
 		} else {
-			parent.Node.(*InternalNode).right = it.current
+			parent.Node.(*bintree.InternalNode).Right = it.current
 		}
 		return it.Next(descend)
-	case Empty:
+	case bintree.Empty:
 		// do nothing
 		return false
 	default:
@@ -178,7 +179,7 @@ func (it *binaryNodeIterator) NodeBlob() []byte {
 
 // Leaf returns true iff the current node is a leaf node.
 func (it *binaryNodeIterator) Leaf() bool {
-	_, ok := it.current.(*StemNode)
+	_, ok := it.current.(*bintree.StemNode)
 	return ok
 }
 
@@ -186,7 +187,7 @@ func (it *binaryNodeIterator) Leaf() bool {
 // positioned at a leaf. Callers must not retain references to the value after
 // calling Next.
 func (it *binaryNodeIterator) LeafKey() []byte {
-	leaf, ok := it.current.(*StemNode)
+	leaf, ok := it.current.(*bintree.StemNode)
 	if !ok {
 		panic("Leaf() called on an binary node iterator not at a leaf location")
 	}
@@ -198,7 +199,7 @@ func (it *binaryNodeIterator) LeafKey() []byte {
 // is not positioned at a leaf. Callers must not retain references to the value
 // after calling Next.
 func (it *binaryNodeIterator) LeafBlob() []byte {
-	leaf, ok := it.current.(*StemNode)
+	leaf, ok := it.current.(*bintree.StemNode)
 	if !ok {
 		panic("LeafBlob() called on an binary node iterator not at a leaf location")
 	}
@@ -210,7 +211,7 @@ func (it *binaryNodeIterator) LeafBlob() []byte {
 // iterator is not positioned at a leaf. Callers must not retain references
 // to the value after calling Next.
 func (it *binaryNodeIterator) LeafProof() [][]byte {
-	_, ok := it.current.(*StemNode)
+	_, ok := it.current.(*bintree.StemNode)
 	if !ok {
 		panic("LeafProof() called on an binary node iterator not at a leaf location")
 	}
