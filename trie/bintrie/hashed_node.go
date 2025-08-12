@@ -33,10 +33,6 @@ func (h HashedNode) Insert(key []byte, value []byte, resolver NodeResolverFn) (B
 	return nil, errors.New("insert not implemented for hashed node")
 }
 
-func (h HashedNode) Commit() common.Hash {
-	return common.Hash(h)
-}
-
 func (h HashedNode) Copy() BinaryNode {
 	nh := common.Hash(h)
 	return HashedNode(nh)

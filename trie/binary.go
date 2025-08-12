@@ -235,7 +235,7 @@ func (trie *BinaryTrie) DeleteStorage(addr common.Address, key []byte) error {
 // Hash returns the root hash of the trie. It does not write to the database and
 // can be used even if the trie doesn't have one.
 func (trie *BinaryTrie) Hash() common.Hash {
-	return trie.root.Commit()
+	return trie.root.Hash()
 }
 
 // Commit writes all nodes to the trie's memory database, tracking the internal

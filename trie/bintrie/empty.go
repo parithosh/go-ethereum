@@ -37,10 +37,6 @@ func (e Empty) Insert(key []byte, value []byte, _ NodeResolverFn) (BinaryNode, e
 	}, nil
 }
 
-func (e Empty) Commit() common.Hash {
-	return common.Hash{}
-}
-
 func (e Empty) Copy() BinaryNode {
 	return Empty{}
 }
