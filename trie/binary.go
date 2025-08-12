@@ -24,27 +24,27 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/trie/bintree"
+	"github.com/ethereum/go-ethereum/trie/bintrie"
 	"github.com/ethereum/go-ethereum/trie/trienode"
 	"github.com/ethereum/go-ethereum/trie/utils"
 	"github.com/ethereum/go-ethereum/triedb/database"
 	"github.com/holiman/uint256"
 )
 
-func NewBinaryNode() bintree.BinaryNode {
-	return bintree.Empty{}
+func NewBinaryNode() bintrie.BinaryNode {
+	return bintrie.Empty{}
 }
 
 // BinaryTrie is a wrapper around VerkleNode that implements the trie.Trie
 // interface so that Verkle trees can be reused verbatim.
 type BinaryTrie struct {
-	root   bintree.BinaryNode
+	root   bintrie.BinaryNode
 	reader *trieReader
 }
 
 func (trie *BinaryTrie) ToDot() string {
 	trie.root.Commit()
-	return bintree.ToDot(trie.root)
+	return bintrie.ToDot(trie.root)
 }
 
 func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, error) {
@@ -59,7 +59,7 @@ func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, err
 		if err != nil {
 			return nil, err
 		}
-		node, err = bintree.DeserializeNode(blob, 0)
+		node, err = bintrie.DeserializeNode(blob, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, err
 func (trie *BinaryTrie) FlatdbNodeResolver(path []byte, hash common.Hash) ([]byte, error) {
 
 	type InternalNode struct {
-		left, right bintree.BinaryNode
+		left, right bintrie.BinaryNode
 		depth       int
 	}
 	if hash == (common.Hash{}) {
@@ -111,11 +111,11 @@ func (trie *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, er
 		err    error
 	)
 	switch r := trie.root.(type) {
-	case *bintree.InternalNode:
+	case *bintrie.InternalNode:
 		values, err = r.GetValuesAtStem(versionkey[:31], trie.FlatdbNodeResolver)
-	case *bintree.StemNode:
+	case *bintrie.StemNode:
 		values = r.Values
-	case bintree.Empty:
+	case bintrie.Empty:
 		return nil, nil
 	default:
 		// This will cover HashedNode but that should be fine since the
@@ -134,7 +134,7 @@ func (trie *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, er
 	emptyAccount := true
 
 	type InternalNode struct {
-		left, right bintree.BinaryNode
+		left, right bintrie.BinaryNode
 		depth       int
 	}
 	for i := 0; values != nil && i <= utils.CodeHashLeafKey && emptyAccount; i++ {
@@ -166,7 +166,7 @@ func (trie *BinaryTrie) UpdateAccount(addr common.Address, acc *types.StateAccou
 	var (
 		err       error
 		basicData [32]byte
-		values    = make([][]byte, bintree.NodeWidth)
+		values    = make([][]byte, bintrie.NodeWidth)
 		stem      = utils.GetBinaryTreeKey(addr, zero[:])
 	)
 
@@ -241,11 +241,11 @@ func (trie *BinaryTrie) Hash() common.Hash {
 // Commit writes all nodes to the trie's memory database, tracking the internal
 // and external (for account tries) references.
 func (trie *BinaryTrie) Commit(_ bool) (common.Hash, *trienode.NodeSet, error) {
-	root := trie.root.(*bintree.InternalNode)
+	root := trie.root.(*bintrie.InternalNode)
 	nodeset := trienode.NewNodeSet(common.Hash{})
 
-	err := root.CollectNodes(nil, func(path []byte, node bintree.BinaryNode) {
-		serialized := bintree.SerializeNode(node)
+	err := root.CollectNodes(nil, func(path []byte, node bintrie.BinaryNode) {
+		serialized := bintrie.SerializeNode(node)
 		nodeset.AddNode(path, trienode.New(common.Hash{}, serialized))
 	})
 	if err != nil {
@@ -284,7 +284,6 @@ func (trie *BinaryTrie) IsVerkle() bool {
 	return true
 }
 
-
 // Note: the basic data leaf needs to have been previously created for this to work
 func (trie *BinaryTrie) UpdateContractCode(addr common.Address, codeHash common.Hash, code []byte) error {
 	var (
@@ -296,7 +295,7 @@ func (trie *BinaryTrie) UpdateContractCode(addr common.Address, codeHash common.
 	for i, chunknr := 0, uint64(0); i < len(chunks); i, chunknr = i+32, chunknr+1 {
 		groupOffset := (chunknr + 128) % 256
 		if groupOffset == 0 /* start of new group */ || chunknr == 0 /* first chunk in header group */ {
-			values = make([][]byte, bintree.NodeWidth)
+			values = make([][]byte, bintrie.NodeWidth)
 			var offset [32]byte
 			binary.LittleEndian.PutUint64(offset[24:], chunknr+128)
 			key = utils.GetBinaryTreeKey(addr, offset[:])
