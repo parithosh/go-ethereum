@@ -39,11 +39,13 @@ func keyToPath(depth int, key []byte) ([]byte, error) {
 	return path, nil
 }
 
+// InternalNode is a binary trie internal node.
 type InternalNode struct {
 	Left, Right BinaryNode
 	depth       int
 }
 
+// GetValuesAtStem retrieves the group of values located at the given stem key.
 func (bt *InternalNode) GetValuesAtStem(stem []byte, resolver NodeResolverFn) ([][]byte, error) {
 	if bt.depth > 31*8 {
 		return nil, errors.New("node too deep")
@@ -75,6 +77,7 @@ func (bt *InternalNode) GetValuesAtStem(stem []byte, resolver NodeResolverFn) ([
 	return (*child).GetValuesAtStem(stem, resolver)
 }
 
+// Get retrieves the value for the given key.
 func (bt *InternalNode) Get(key []byte, resolver NodeResolverFn) ([]byte, error) {
 	values, err := bt.GetValuesAtStem(key[:31], resolver)
 	if err != nil {
@@ -83,20 +86,14 @@ func (bt *InternalNode) Get(key []byte, resolver NodeResolverFn) ([]byte, error)
 	return values[key[31]], nil
 }
 
+// Insert inserts a new key-value pair into the trie.
 func (bt *InternalNode) Insert(key []byte, value []byte, resolver NodeResolverFn) (BinaryNode, error) {
 	var values [256][]byte
 	values[key[31]] = value
 	return bt.InsertValuesAtStem(key[:31], values[:], resolver, 0)
 }
 
-func (bt *InternalNode) Commit() common.Hash {
-	hasher := blake3.New()
-	hasher.Write(bt.Left.Commit().Bytes())
-	hasher.Write(bt.Right.Commit().Bytes())
-	sum := hasher.Sum(nil)
-	return common.BytesToHash(sum)
-}
-
+// Copy creates a deep copy of the node.
 func (bt *InternalNode) Copy() BinaryNode {
 	return &InternalNode{
 		Left:  bt.Left.Copy(),
@@ -105,6 +102,7 @@ func (bt *InternalNode) Copy() BinaryNode {
 	}
 }
 
+// Hash returns the hash of the node.
 func (bt *InternalNode) Hash() common.Hash {
 	h := blake3.New()
 	if bt.Left != nil {
@@ -138,6 +136,8 @@ func (bt *InternalNode) InsertValuesAtStem(stem []byte, values [][]byte, resolve
 	return bt, err
 }
 
+// CollectNodes collects all child nodes at a given path, and flushes it
+// into the provided node collector.
 func (bt *InternalNode) CollectNodes(path []byte, flushfn NodeFlushFn) error {
 	if bt.Left != nil {
 		var p [256]byte
@@ -161,6 +161,7 @@ func (bt *InternalNode) CollectNodes(path []byte, flushfn NodeFlushFn) error {
 	return nil
 }
 
+// GetHeight returns the height of the node.
 func (bt *InternalNode) GetHeight() int {
 	var (
 		leftHeight  int

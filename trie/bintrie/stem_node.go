@@ -26,16 +26,19 @@ import (
 	"github.com/zeebo/blake3"
 )
 
+// StemNode represents a group of `NodeWith` values sharing the same stem.
 type StemNode struct {
-	Stem   []byte
-	Values [][]byte
-	depth  int
+	Stem   []byte   // Stem path to get to 256 values
+	Values [][]byte // All values, indexed by the last byte of the key.
+	depth  int      // Depth of the node
 }
 
+// Get retrieves the value for the given key.
 func (bt *StemNode) Get(key []byte, _ NodeResolverFn) ([]byte, error) {
 	panic("this should not be called directly")
 }
 
+// Insert inserts a new key-value pair into the node.
 func (bt *StemNode) Insert(key []byte, value []byte, _ NodeResolverFn) (BinaryNode, error) {
 	if !bytes.Equal(bt.Stem, key[:31]) {
 		bitStem := bt.Stem[bt.depth/8] >> (7 - (bt.depth % 8)) & 1
@@ -81,10 +84,7 @@ func (bt *StemNode) Insert(key []byte, value []byte, _ NodeResolverFn) (BinaryNo
 	return bt, nil
 }
 
-func (bt *StemNode) Commit() common.Hash {
-	return bt.Hash()
-}
-
+// Copy creates a deep copy of the node.
 func (bt *StemNode) Copy() BinaryNode {
 	var values [256][]byte
 	for i, v := range bt.Values {
@@ -97,10 +97,12 @@ func (bt *StemNode) Copy() BinaryNode {
 	}
 }
 
+// GetHeight returns the height of the node.
 func (bt *StemNode) GetHeight() int {
 	return 1
 }
 
+// Hash returns the hash of the node.
 func (bt *StemNode) Hash() common.Hash {
 	var data [NodeWidth]common.Hash
 	for i, v := range bt.Values {
@@ -133,15 +135,20 @@ func (bt *StemNode) Hash() common.Hash {
 	return common.BytesToHash(h.Sum(nil))
 }
 
+// CollectNodes collects all child nodes at a given path, and flushes it
+// into the provided node collector.
 func (bt *StemNode) CollectNodes(path []byte, flush NodeFlushFn) error {
 	flush(path, bt)
 	return nil
 }
 
+// GetValuesAtStem retrieves the group of values located at the given stem key.
 func (bt *StemNode) GetValuesAtStem(_ []byte, _ NodeResolverFn) ([][]byte, error) {
 	return bt.Values[:], nil
 }
 
+// InsertValuesAtStem inserts a full value group at the given stem in the internal node.
+// Already-existing values will be overwritten.
 func (bt *StemNode) InsertValuesAtStem(key []byte, values [][]byte, _ NodeResolverFn, depth int) (BinaryNode, error) {
 	if !bytes.Equal(bt.Stem, key[:31]) {
 		bitStem := bt.Stem[bt.depth/8] >> (7 - (bt.depth % 8)) & 1
@@ -200,6 +207,7 @@ func (bt *StemNode) toDot(parent, path string) string {
 	return ret
 }
 
+// Key returns the full key for the given index.
 func (bt *StemNode) Key(i int) []byte {
 	var ret [32]byte
 	copy(ret[:], bt.Stem)

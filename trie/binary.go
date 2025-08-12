@@ -31,6 +31,10 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// zero is the zero value for a 32-byte array.
+var zero [32]byte
+
+// NewBinaryNode creates a new empty binary trie
 func NewBinaryNode() bintrie.BinaryNode {
 	return bintrie.Empty{}
 }
@@ -42,11 +46,13 @@ type BinaryTrie struct {
 	reader *trieReader
 }
 
+// ToDot converts the binary trie to a DOT language representation. Useful for debugging.
 func (trie *BinaryTrie) ToDot() string {
-	trie.root.Commit()
+	trie.root.Hash()
 	return bintrie.ToDot(trie.root)
 }
 
+// NewBinaryTrie creates a new binary trie.
 func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, error) {
 	reader, err := newTrieReader(root, common.Hash{}, db)
 	if err != nil {
@@ -70,19 +76,15 @@ func NewBinaryTrie(root common.Hash, db database.NodeDatabase) (*BinaryTrie, err
 	}, nil
 }
 
+// FlatdbNodeResolver is a node resolver that reads nodes from the flatdb.
 func (trie *BinaryTrie) FlatdbNodeResolver(path []byte, hash common.Hash) ([]byte, error) {
-
-	type InternalNode struct {
-		left, right bintrie.BinaryNode
-		depth       int
-	}
+	// empty nodes will be serialized as common.Hash{}, so capture
+	// this special use case.
 	if hash == (common.Hash{}) {
 		return nil, nil // empty node
 	}
 	return trie.reader.node(path, hash)
 }
-
-var FlatDBVerkleNodeKeyPrefix = []byte("flat-") // prefix for flatdb keys
 
 // GetKey returns the sha3 preimage of a hashed key that was previously used
 // to store a value.
@@ -103,6 +105,7 @@ func (trie *BinaryTrie) GetWithHashedKey(key []byte) ([]byte, error) {
 	return trie.root.Get(key, trie.FlatdbNodeResolver)
 }
 
+// GetAccount returns the account information for the given address.
 func (trie *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, error) {
 	acc := &types.StateAccount{}
 	versionkey := utils.GetBinaryTreeKey(addr, zero[:])
@@ -133,10 +136,6 @@ func (trie *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, er
 	// TODO: we can simplify this logic depending if the conversion is in progress or finished.
 	emptyAccount := true
 
-	type InternalNode struct {
-		left, right bintrie.BinaryNode
-		depth       int
-	}
 	for i := 0; values != nil && i <= utils.CodeHashLeafKey && emptyAccount; i++ {
 		emptyAccount = emptyAccount && values[i] == nil
 	}
@@ -160,8 +159,7 @@ func (trie *BinaryTrie) GetAccount(addr common.Address) (*types.StateAccount, er
 	return acc, nil
 }
 
-var zero [32]byte
-
+// UpdateAccount updates the account information for the given address.
 func (trie *BinaryTrie) UpdateAccount(addr common.Address, acc *types.StateAccount, codeLen int) error {
 	var (
 		err       error
@@ -189,6 +187,7 @@ func (trie *BinaryTrie) UpdateAccount(addr common.Address, acc *types.StateAccou
 	return err
 }
 
+// UpdateStem updates the values for the given stem key.
 func (trie *BinaryTrie) UpdateStem(key []byte, values [][]byte) error {
 	var err error
 	trie.root, err = trie.root.InsertValuesAtStem(key, values, trie.FlatdbNodeResolver, 0)
@@ -215,6 +214,7 @@ func (trie *BinaryTrie) UpdateStorage(address common.Address, key, value []byte)
 	return nil
 }
 
+// DeleteAccount is a no-op as it is disabled in stateless.
 func (trie *BinaryTrie) DeleteAccount(addr common.Address) error {
 	return nil
 }
@@ -273,6 +273,7 @@ func (trie *BinaryTrie) Prove(key []byte, proofDb ethdb.KeyValueWriter) error {
 	panic("not implemented")
 }
 
+// Copy creates a deep copy of the trie.
 func (trie *BinaryTrie) Copy() *BinaryTrie {
 	return &BinaryTrie{
 		root:   trie.root.Copy(),
@@ -280,7 +281,11 @@ func (trie *BinaryTrie) Copy() *BinaryTrie {
 	}
 }
 
+// IsVerkle returns true if the trie is a Verkle tree.
 func (trie *BinaryTrie) IsVerkle() bool {
+	// TODO @gballet This is technically NOT a verkle tree, but it has the same
+	// behavior and basic structure, so for all intents and purposes, it can be
+	// treated as such. Rename this when verkle gets removed.
 	return true
 }
 

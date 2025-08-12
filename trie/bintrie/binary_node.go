@@ -27,17 +27,19 @@ type (
 	NodeResolverFn func([]byte, common.Hash) ([]byte, error)
 )
 
+// zero is the zero value for a 32-byte array.
 var zero [32]byte
 
 const (
-	NodeWidth = 256
-	StemSize  = 31
+	NodeWidth = 256 // Number of child per leaf node
+	StemSize  = 31  // Number of bytes to travel before reaching a group of leaves
 )
 
+// BinaryNode is an interface for a binary trie node.
 type BinaryNode interface {
 	Get([]byte, NodeResolverFn) ([]byte, error)
 	Insert([]byte, []byte, NodeResolverFn) (BinaryNode, error)
-	Commit() common.Hash
+	// Commit() common.Hash
 	Copy() BinaryNode
 	Hash() common.Hash
 	GetValuesAtStem([]byte, NodeResolverFn) ([][]byte, error)
@@ -48,6 +50,7 @@ type BinaryNode interface {
 	GetHeight() int
 }
 
+// SerializeNode serializes a binary trie node into a byte slice.
 func SerializeNode(node BinaryNode) []byte {
 	switch n := (node).(type) {
 	case *InternalNode:
@@ -75,6 +78,7 @@ func SerializeNode(node BinaryNode) []byte {
 	}
 }
 
+// DeserializeNode deserializes a binary trie node from a byte slice.
 func DeserializeNode(serialized []byte, depth int) (BinaryNode, error) {
 	if len(serialized) == 0 {
 		return Empty{}, nil
@@ -95,10 +99,6 @@ func DeserializeNode(serialized []byte, depth int) (BinaryNode, error) {
 		bitmap := serialized[32:64]
 		offset := 64
 
-		type InternalNode struct {
-			left, right BinaryNode
-			depth       int
-		}
 		for i := range 256 {
 			if bitmap[i/8]>>(7-(i%8))&1 == 1 {
 				values[i] = serialized[offset : offset+32]
@@ -115,6 +115,7 @@ func DeserializeNode(serialized []byte, depth int) (BinaryNode, error) {
 	}
 }
 
+// ToDot converts the binary trie to a DOT language representation. Useful for debugging.
 func ToDot(root BinaryNode) string {
 	return root.toDot("", "")
 }
